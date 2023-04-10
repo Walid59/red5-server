@@ -284,12 +284,11 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
      * Start stream
      */
     public void start() {
-        if (isDebug) {
-            log.debug("start - subscriber stream state: {}", (subscriberStream != null ? subscriberStream.getState() : null));
-        }
-        switch (subscriberStream.getState()) {
-            case UNINIT:
-                // allow start if uninitialized and change state to stopped
+        if (subscriberStream != null && subscriberStream.getState() != null) {
+            if (isDebug) {
+                log.debug("start - subscriber stream state: {}", subscriberStream.getState());
+            }
+            if (subscriberStream.getState() == StreamState.UNINIT) {// allow start if uninitialized and change state to stopped
                 subscriberStream.setState(StreamState.STOPPED);
                 IMessageOutput out = consumerService.getConsumerOutput(subscriberStream);
                 if (msgOutReference.compareAndSet(null, out)) {
@@ -297,23 +296,19 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
                 } else if (isDebug) {
                     log.debug("Message output was already set for stream: {}", subscriberStream);
                 }
-                break;
-            default:
+            } else {
                 throw new IllegalStateException(String.format("Cannot start in current state: %s", subscriberStream.getState()));
+            }
         }
     }
 
     /**
      * Play stream
      *
-     * @param item
-     *            Playlist item
-     * @throws StreamNotFoundException
-     *             Stream not found
-     * @throws IllegalStateException
-     *             Stream is in stopped state
-     * @throws IOException
-     *             Stream had io exception
+     * @param item Playlist item
+     * @throws StreamNotFoundException Stream not found
+     * @throws IllegalStateException   Stream is in stopped state
+     * @throws IOException             Stream had io exception
      */
     public void play(IPlayItem item) throws StreamNotFoundException, IllegalStateException, IOException {
         play(item, true);
@@ -321,19 +316,14 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
 
     /**
      * Play stream
-     *
+     * <p>
      * See: https://www.adobe.com/devnet/adobe-media-server/articles/dynstream_actionscript.html
      *
-     * @param item
-     *            Playlist item
-     * @param withReset
-     *            Send reset status before playing.
-     * @throws StreamNotFoundException
-     *             Stream not found
-     * @throws IllegalStateException
-     *             Stream is in stopped state
-     * @throws IOException
-     *             Stream had IO exception
+     * @param item      Playlist item
+     * @param withReset Send reset status before playing.
+     * @throws StreamNotFoundException Stream not found
+     * @throws IllegalStateException   Stream is in stopped state
+     * @throws IOException             Stream had IO exception
      */
     public void play(IPlayItem item, boolean withReset) throws StreamNotFoundException, IllegalStateException, IOException {
         IMessageInput in = null;
@@ -597,10 +587,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Performs the processes needed for VOD / pre-recorded streams.
      *
-     * @param withReset
-     *            whether or not to perform reset on the stream
-     * @param itemLength
-     *            length of the item to be played
+     * @param withReset  whether or not to perform reset on the stream
+     * @param itemLength length of the item to be played
      * @return message for the consumer
      * @throws IOException
      */
@@ -647,8 +635,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Connects to the data provider.
      *
-     * @param itemName
-     *            name of the item to play
+     * @param itemName name of the item to play
      */
     private final void connectToProvider(String itemName) {
         log.debug("Attempting connection to {}", itemName);
@@ -679,10 +666,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Pause at position
      *
-     * @param position
-     *            Position in file
-     * @throws IllegalStateException
-     *             If stream is stopped
+     * @param position Position in file
+     * @throws IllegalStateException If stream is stopped
      */
     public void pause(int position) throws IllegalStateException {
         // allow pause if playing or stopped
@@ -703,10 +688,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Resume playback
      *
-     * @param position
-     *            Resumes playback
-     * @throws IllegalStateException
-     *             If stream is stopped
+     * @param position Resumes playback
+     * @throws IllegalStateException If stream is stopped
      */
     public void resume(int position) throws IllegalStateException {
         // allow resume from pause
@@ -739,12 +722,9 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Seek to a given position
      *
-     * @param position
-     *            Position
-     * @throws IllegalStateException
-     *             If stream is in stopped state
-     * @throws OperationNotSupportedException
-     *             If this object doesn't support the operation.
+     * @param position Position
+     * @throws IllegalStateException          If stream is in stopped state
+     * @throws OperationNotSupportedException If this object doesn't support the operation.
      */
     public void seek(int position) throws IllegalStateException, OperationNotSupportedException {
         // add this pending seek operation to the list
@@ -756,52 +736,53 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Stop playback
      *
-     * @throws IllegalStateException
-     *             If stream is in stopped state
+     * @throws IllegalStateException If stream is in stopped state
      */
     public void stop() throws IllegalStateException {
-        if (isDebug) {
-            log.debug("stop - subscriber stream state: {}", (subscriberStream != null ? subscriberStream.getState() : null));
-        }
-        // allow stop if playing or paused
-        switch (subscriberStream.getState()) {
-            case PLAYING:
-            case PAUSED:
-                subscriberStream.setState(StreamState.STOPPED);
-                IMessageInput in = msgInReference.get();
-                if (in != null && !pullMode) {
-                    in.unsubscribe(this);
-                    msgInReference.set(null);
-                }
-                subscriberStream.onChange(StreamState.STOPPED, currentItem.get());
-                clearWaitJobs();
-                cancelDeferredStop();
-                if (subscriberStream instanceof IPlaylistSubscriberStream) {
-                    IPlaylistSubscriberStream pss = (IPlaylistSubscriberStream) subscriberStream;
-                    if (!pss.hasMoreItems()) {
-                        releasePendingMessage();
-                        sendCompleteStatus();
-                        bytesSent.set(0);
-                        sendStopStatus(currentItem.get());
-                        sendClearPing();
-                    } else {
-                        if (lastMessageTs > 0) {
-                            // remember last timestamp so we can generate correct headers in playlists.
-                            timestampOffset = lastMessageTs;
-                        }
-                        pss.nextItem();
+        if (subscriberStream != null && subscriberStream.getState() != null) {
+            if (isDebug) {
+                log.debug("stop - subscriber stream state: {}", subscriberStream.getState());
+            }
+            // allow stop if playing or paused
+            switch (subscriberStream.getState()) {
+                case PLAYING:
+                case PAUSED:
+                    subscriberStream.setState(StreamState.STOPPED);
+                    IMessageInput in = msgInReference.get();
+                    if (in != null && !pullMode) {
+                        in.unsubscribe(this);
+                        msgInReference.set(null);
                     }
-                }
-                break;
-            case CLOSED:
-                clearWaitJobs();
-                cancelDeferredStop();
-                break;
-            case STOPPED:
-                log.trace("Already in stopped state");
-                break;
-            default:
-                throw new IllegalStateException(String.format("Cannot stop in current state: %s", subscriberStream.getState()));
+                    subscriberStream.onChange(StreamState.STOPPED, currentItem.get());
+                    clearWaitJobs();
+                    cancelDeferredStop();
+                    if (subscriberStream instanceof IPlaylistSubscriberStream) {
+                        IPlaylistSubscriberStream pss = (IPlaylistSubscriberStream) subscriberStream;
+                        if (!pss.hasMoreItems()) {
+                            releasePendingMessage();
+                            sendCompleteStatus();
+                            bytesSent.set(0);
+                            sendStopStatus(currentItem.get());
+                            sendClearPing();
+                        } else {
+                            if (lastMessageTs > 0) {
+                                // remember last timestamp so we can generate correct headers in playlists.
+                                timestampOffset = lastMessageTs;
+                            }
+                            pss.nextItem();
+                        }
+                    }
+                    break;
+                case CLOSED:
+                    clearWaitJobs();
+                    cancelDeferredStop();
+                    break;
+                case STOPPED:
+                    log.trace("Already in stopped state");
+                    break;
+                default:
+                    throw new IllegalStateException(String.format("Cannot stop in current state: %s", subscriberStream.getState()));
+            }
         }
     }
 
@@ -878,7 +859,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
             if (currentItem.get() != null) {
                 itemName = currentItem.get().getName();
             }
-            Object[] errorItems = new Object[] { message.getClass(), message.getDataType(), itemName };
+            Object[] errorItems = new Object[]{message.getClass(), message.getDataType(), itemName};
             throw new RuntimeException(String.format("Expected IStreamData but got %s (type %s) for %s", errorItems));
         }
     }
@@ -886,8 +867,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Estimate client buffer fill.
      *
-     * @param now
-     *            The current timestamp being used.
+     * @param now The current timestamp being used.
      * @return True if it appears that the client buffer is full, otherwise false.
      */
     private boolean isClientBufferFull(final long now) {
@@ -899,7 +879,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
             final long buffer = subscriberStream.getClientBufferDuration();
             // expected amount of data present in client buffer
             final long buffered = lastMessageTs - delta;
-            log.trace("isClientBufferFull: timestamp {} delta {} buffered {} buffer duration {}", new Object[] { lastMessageTs, delta, buffered, buffer });
+            log.trace("isClientBufferFull: timestamp {} delta {} buffered {} buffer duration {}", new Object[]{lastMessageTs, delta, buffered, buffer});
             // fix for SN-122, this sends double the size of the client buffer
             if (buffer > 0 && buffered > (buffer * 2)) {
                 // client is likely to have enough data in the buffer
@@ -916,7 +896,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
             final long delta = System.currentTimeMillis() - playbackStart;
             // expected amount of data present in client buffer
             final long buffered = lastMessageTs - delta;
-            log.trace("isClientBufferEmpty: timestamp {} delta {} buffered {}", new Object[] { lastMessageTs, delta, buffered });
+            log.trace("isClientBufferEmpty: timestamp {} delta {} buffered {}", new Object[]{lastMessageTs, delta, buffered});
             if (buffered < 0) {
                 return true;
             }
@@ -965,8 +945,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send message to output stream and handle exceptions.
      *
-     * @param message
-     *            The message to send.
+     * @param message The message to send.
      */
     private void doPushMessage(AbstractMessage message) {
         if (isTrace) {
@@ -997,8 +976,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send an RTMP message
      *
-     * @param messageIn
-     *            incoming RTMP message
+     * @param messageIn incoming RTMP message
      */
     private void sendMessage(RTMPMessage messageIn) {
         IRTMPEvent eventIn = messageIn.getBody();
@@ -1026,7 +1004,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
         if (isTrace) {
             log.trace("Source type - in: {} out: {}", eventIn.getSourceType(), messageOut.getBody().getSourceType());
             long delta = System.currentTimeMillis() - playbackStart;
-            log.trace("sendMessage: streamStartTS {}, length {}, streamOffset {}, timestamp {} last timestamp {} delta {} buffered {}", new Object[] { streamStartTS.get(), currentItem.get().getLength(), streamOffset, eventTime, lastMessageTs, delta, lastMessageTs - delta });
+            log.trace("sendMessage: streamStartTS {}, length {}, streamOffset {}, timestamp {} last timestamp {} delta {} buffered {}", new Object[]{streamStartTS.get(), currentItem.get().getLength(), streamOffset, eventTime, lastMessageTs, delta, lastMessageTs - delta});
         }
         if (playDecision == 1) { // 1 == vod/file
             if (eventTime > 0 && streamStartTS.compareAndSet(-1, eventTime)) {
@@ -1057,7 +1035,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
                 eventTime -= startTs;
                 messageOut.getBody().setTimestamp(eventTime);
                 if (isTrace) {
-                    log.trace("sendMessage (updated): streamStartTS={}, length={}, streamOffset={}, timestamp={}", new Object[] { startTs, currentItem.get().getLength(), streamOffset, eventTime });
+                    log.trace("sendMessage (updated): streamStartTS={}, length={}, streamOffset={}, timestamp={}", new Object[]{startTs, currentItem.get().getLength(), streamOffset, eventTime});
                 }
             }
         }
@@ -1102,8 +1080,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send reset status for item
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendResetStatus(IPlayItem item) {
         Status reset = new Status(StatusCodes.NS_PLAY_RESET);
@@ -1117,8 +1094,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send playback start status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendStartStatus(IPlayItem item) {
         Status start = new Status(StatusCodes.NS_PLAY_START);
@@ -1132,8 +1108,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send playback stoppage status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendStopStatus(IPlayItem item) {
         Status stop = new Status(StatusCodes.NS_PLAY_STOP);
@@ -1146,7 +1121,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
 
     /**
      * Sends an onPlayStatus message.
-     *
+     * <p>
      * http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/events/NetDataEvent.html
      *
      * @param code
@@ -1203,7 +1178,6 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
 
     /**
      * Send playlist complete status notification
-     *
      */
     private void sendCompleteStatus() {
         // may be the correct duration
@@ -1217,16 +1191,14 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send seek status notification
      *
-     * @param item
-     *            Playlist item
-     * @param position
-     *            Seek position
+     * @param item     Playlist item
+     * @param position Seek position
      */
     private void sendSeekStatus(IPlayItem item, int position) {
         Status seek = new Status(StatusCodes.NS_SEEK_NOTIFY);
         seek.setClientid(streamId);
         seek.setDetails(item.getName());
-        seek.setDesciption(String.format("Seeking %d (stream ID: %d).", position, streamId));
+        seek.setDesciption(String.format("Seeking %d (stream ID: %d).", position, streamId.intValue()));
 
         doPushMessage(seek);
     }
@@ -1234,8 +1206,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send pause status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendPauseStatus(IPlayItem item) {
         Status pause = new Status(StatusCodes.NS_PAUSE_NOTIFY);
@@ -1248,8 +1219,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send resume status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendResumeStatus(IPlayItem item) {
         Status resume = new Status(StatusCodes.NS_UNPAUSE_NOTIFY);
@@ -1262,8 +1232,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send published status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendPublishedStatus(IPlayItem item) {
         Status published = new Status(StatusCodes.NS_PLAY_PUBLISHNOTIFY);
@@ -1276,8 +1245,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send unpublished status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendUnpublishedStatus(IPlayItem item) {
         Status unpublished = new Status(StatusCodes.NS_PLAY_UNPUBLISHNOTIFY);
@@ -1290,8 +1258,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Stream not found status notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendStreamNotFoundStatus(IPlayItem item) {
         Status notFound = new Status(StatusCodes.NS_PLAY_STREAMNOTFOUND);
@@ -1305,8 +1272,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Insufficient bandwidth notification
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendInsufficientBandwidthStatus(IPlayItem item) {
         Status insufficientBW = new Status(StatusCodes.NS_PLAY_INSUFFICIENT_BW);
@@ -1321,8 +1287,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send VOD init control message
      *
-     * @param item
-     *            Playlist item
+     * @param item Playlist item
      */
     private void sendVODInitCM(IPlayItem item) {
         OOBControlMessage oobCtrlMsg = new OOBControlMessage();
@@ -1337,10 +1302,8 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Send VOD seek control message
      *
-     * @param msgIn
-     *            Message input
-     * @param position
-     *            Playlist item
+     * @param msgIn    Message input
+     * @param position Playlist item
      * @return Out-of-band control message call result or -1 on failure
      */
     private int sendVODSeekCM(int position) {
@@ -1375,7 +1338,9 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public void onOOBControlMessage(IMessageComponent source, IPipe pipe, OOBControlMessage oobCtrlMsg) {
         if ("ConnectionConsumer".equals(oobCtrlMsg.getTarget())) {
             if (source instanceof IProvider) {
@@ -1391,7 +1356,9 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
         }
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public void onPipeConnectionEvent(PipeConnectionEvent event) {
         switch (event.getType()) {
             case PROVIDER_CONNECT_PUSH:
@@ -1437,7 +1404,9 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
         return false;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     */
     public void pushMessage(IPipe pipe, IMessage message) throws IOException {
         if (!pullMode) {
             if (!configsDone) {
@@ -1486,7 +1455,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
                                 // only check for frame dropping if the codec supports it
                                 long pendingVideos = pendingVideoMessages();
                                 if (isTrace) {
-                                    log.trace("Pending messages sessionId={} stream={} pending={} threshold={} sequential={} dropped={}", new Object[] { sessionId, subscribedStreamName, pendingVideos, maxPendingVideoFrames, numSequentialPendingVideoFrames, droppedPacketsCount });
+                                    log.trace("Pending messages sessionId={} stream={} pending={} threshold={} sequential={} dropped={}", new Object[]{sessionId, subscribedStreamName, pendingVideos, maxPendingVideoFrames, numSequentialPendingVideoFrames, droppedPacketsCount});
                                 }
                                 if (!videoFrameDropper.canSendPacket(rtmpMessage, pendingVideos)) {
                                     // drop frame as it depends on other frames that were dropped before
@@ -1506,7 +1475,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
                                 if (pendingVideos > maxPendingVideoFrames || numSequentialPendingVideoFrames > maxSequentialPendingVideoFrames) {
                                     droppedPacketsCount++;
                                     if (log.isInfoEnabled() && shouldLogPacketDrop()) {
-                                        log.info("Drop packet. Pending above threshold. sessionId={} stream={} pending={} threshold={} sequential={} dropped={}", new Object[] { sessionId, subscribedStreamName, pendingVideos, maxPendingVideoFrames, numSequentialPendingVideoFrames, droppedPacketsCount });
+                                        log.info("Drop packet. Pending above threshold. sessionId={} stream={} pending={} threshold={} sequential={} dropped={}", new Object[]{sessionId, subscribedStreamName, pendingVideos, maxPendingVideoFrames, numSequentialPendingVideoFrames, droppedPacketsCount});
                                     }
                                     // drop because the client has insufficient bandwidth
                                     long now = System.currentTimeMillis();
@@ -1624,8 +1593,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Returns true if the engine currently receives audio and sets the new value.
      *
-     * @param receive
-     *            new value
+     * @param receive new value
      * @return old value
      */
     public boolean receiveAudio(boolean receive) {
@@ -1649,8 +1617,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Returns true if the engine currently receives video and sets the new value.
      *
-     * @param receive
-     *            new value
+     * @param receive new value
      * @return old value
      */
     public boolean receiveVideo(boolean receive) {
@@ -1678,8 +1645,7 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     /**
      * Check if sending the given message was enabled by the client.
      *
-     * @param message
-     *            the message to check
+     * @param message the message to check
      * @return true if the message should be sent, false otherwise (and the message is discarded)
      */
     protected boolean checkSendMessageEnabled(RTMPMessage message) {
@@ -1975,16 +1941,14 @@ public final class PlayEngine implements IFilter, IPushableConsumer, IPipeConnec
     }
 
     /**
-     * @param maxPendingVideoFrames
-     *            the maxPendingVideoFrames to set
+     * @param maxPendingVideoFrames the maxPendingVideoFrames to set
      */
     public void setMaxPendingVideoFrames(int maxPendingVideoFrames) {
         this.maxPendingVideoFrames = maxPendingVideoFrames;
     }
 
     /**
-     * @param maxSequentialPendingVideoFrames
-     *            the maxSequentialPendingVideoFrames to set
+     * @param maxSequentialPendingVideoFrames the maxSequentialPendingVideoFrames to set
      */
     public void setMaxSequentialPendingVideoFrames(int maxSequentialPendingVideoFrames) {
         this.maxSequentialPendingVideoFrames = maxSequentialPendingVideoFrames;

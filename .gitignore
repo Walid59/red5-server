@@ -4,6 +4,9 @@ target/
 .classpath
 .DS_Store
 
+.idea
+.scannerwork
+
 *.zip
 *.tar.gz
 *~

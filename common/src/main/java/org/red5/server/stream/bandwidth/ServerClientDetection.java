@@ -7,6 +7,7 @@
 
 package org.red5.server.stream.bandwidth;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -73,12 +74,13 @@ public class ServerClientDetection implements IPendingServiceCallback, IBandwidt
         calculateClientBw(conn);
     }
 
+    private final Random rnd = new SecureRandom();
     public void calculateClientBw(IConnection conn) {
         log.debug("calculateClientBw: {} ", conn);
         // set local connection ref
         this.conn = conn;
         // get random generator
-        Random rnd = new Random();
+        //C'est réel
         rnd.nextBytes(payload);
         rnd.nextBytes(payload1);
         // get the current bytes written on the connection

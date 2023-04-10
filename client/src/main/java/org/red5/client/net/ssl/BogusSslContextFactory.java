@@ -53,17 +53,15 @@ public class BogusSslContextFactory {
      * @return SSLContext
      * @throws java.security.GeneralSecurityException thrown
      */
-    public static SSLContext getInstance(boolean server) throws GeneralSecurityException {
+    public static synchronized SSLContext getInstance(boolean server) throws GeneralSecurityException {
         SSLContext retInstance = null;
         if (server) {
             if (serverInstance == null) {
                 synchronized (BogusSslContextFactory.class) {
-                    if (serverInstance == null) {
-                        try {
-                            serverInstance = createBougusServerSslContext();
-                        } catch (Exception ioe) {
-                            throw new GeneralSecurityException("Can't create Server SSLContext:" + ioe);
-                        }
+                    try {
+                        serverInstance = createBougusServerSslContext();
+                    } catch (Exception ioe) {
+                        throw new GeneralSecurityException("Can't create Server SSLContext:" + ioe);
                     }
                 }
             }

@@ -60,15 +60,20 @@ public class RTMPHandshakeTest {
 
     private void fillBuffer(IoBuffer buf, String byteDumpFile) throws Exception {
         File f = new File(String.format("%s/target/test-classes/%s", System.getProperty("user.dir"), byteDumpFile));
-        FileInputStream fis = new FileInputStream(f);
-        log.info("File: {} length: {}", byteDumpFile, f.length());
-        ByteBuffer bb = ByteBuffer.allocate((int) f.length());
-        fis.getChannel().read(bb);
-        bb.flip();
-        buf.put(bb);
-        buf.flip();
-        log.debug("Filled buffer: {}", buf);
-        fis.close();
+        try(FileInputStream fis = new FileInputStream(f)){
+            log.info("File: {} length: {}", byteDumpFile, f.length());
+            ByteBuffer bb = ByteBuffer.allocate((int) f.length());
+            fis.getChannel().read(bb);
+            bb.flip();
+            buf.put(bb);
+            buf.flip();
+            log.debug("Filled buffer: {}", buf);
+        }catch(Exception e){
+            logger.log(e.getMessage());
+        }finally{
+            fis.close();
+        }
+
     }
 
     @Test

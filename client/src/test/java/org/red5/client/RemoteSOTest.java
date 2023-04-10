@@ -11,6 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
@@ -32,34 +33,25 @@ public class RemoteSOTest {
         System.setProperty("red5.deployment.type", "junit");
     }
 
+    // en gros ici on fait un try-with resources
     @Before
-    public void setUp() throws Exception {
+    public static void setUp() throws Exception {
         // skip the tests if red5 isnt listening
-        Socket s = null;
-        try {
-            s = new Socket();
+        try (Socket s = new Socket()){
             SocketAddress sa = new InetSocketAddress("localhost", 1935);
             s.connect(sa, 1000);
         } catch (Exception e) {
-            //System.err.println(e.getMessage());
             skipTest = true;
-        } finally {
-            if (s.isConnected()) {
-                s.close();
-            }
         }
     }
 
-    @After
-    public void tearDown() throws Exception {
-    }
 
     @Test
     public void testRemoteSO() throws Throwable {
         // check for the presence of a red5 server or skip the test
         if (!skipTest) {
             // test runnables represent clients
-            List<SOClientWorker> tasks = new ArrayList<SOClientWorker>(threads);
+            List<SOClientWorker> tasks = new ArrayList<>(threads);
             for (int t = 0; t < threads; t++) {
                 tasks.add(new SOClientWorker(t));
             }
@@ -69,13 +61,13 @@ public class RemoteSOTest {
             // invokeAll() blocks until all tasks have run...
             List<Future<Object>> futures = executorService.invokeAll(tasks);
             assertTrue(futures.size() == threads);
-            System.out.println("Runtime: " + (System.nanoTime() - start) + "ns");
+            logger.log("Runtime: " + (System.nanoTime() - start) + "ns");
             for (SOClientWorker r : tasks) {
                 SOClientWorker cl = r;
                 log.debug("Worker: {}", cl.getId());
             }
         } else {
-            System.out.println("No red5 server detected for testing against");
+            logger.log("No red5 server detected for testing against");
         }
     }
 

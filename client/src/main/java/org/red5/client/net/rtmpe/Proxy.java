@@ -209,6 +209,7 @@ public class Proxy implements IClientListener {
                                         }
                                         break;
                                     }
+                                    break;
                                 case Constants.TYPE_AUDIO_DATA:
                                 case Constants.TYPE_VIDEO_DATA:
                                     //case Constants.TYPE_STREAM_METADATA:
@@ -222,6 +223,7 @@ public class Proxy implements IClientListener {
                                     break;
                                 default:
                                     log.debug("Data type not processed: {}", dataType);
+                                    break;
                             }
                         } else {
                             break;

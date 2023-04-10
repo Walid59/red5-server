@@ -19,6 +19,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.security.SecureRandom;
 import java.util.Enumeration;
 import java.util.Random;
 import java.util.zip.ZipEntry;
@@ -428,8 +429,9 @@ public class FileUtil {
      *
      * @return custom name
      */
+
+    static Random random = new SecureRandom();
     public static String generateCustomName() {
-        Random random = new Random();
         StringBuilder sb = new StringBuilder();
         sb.append(PropertyConverter.getCurrentTimeSeconds());
         sb.append('_');

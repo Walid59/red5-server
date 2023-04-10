@@ -11,7 +11,7 @@ Lien du github du projet : https://github.com/Walid59/red5-server
 
 
 ### I. Résolution de certaines issues
-on peut par exemple essayer de retirer un maximum de blocker:
+on peut par exemple essayer de retirer un maximum de blocker:  
 ![image](image_2.png)
 
 ![image](image_3.png)
@@ -35,7 +35,7 @@ Maintenant, intéressons nous à la complexité cyclomatique et cognitive. Pour 
 Nous allons voir s'il y a des fichiers en particulier qu'on peut rendre moins complexe.
 
 Pour rappel, voici quelques chiffres concernant la complexité cyclomatique & cognitive  :
-![Capture d'écran 2023-04-10 200714](Capture%20d'%C3%A9cran%202023-04-10%20200714.png)
+![image](image13.png)  
 Bien que ces chiffres ne soient pas parlants - car elles correspondent a la somme de la complexité de chaque fichier - , nous allons essayer de diminuer ces 2 valeurs en nous concentrant sur des fichiers particuliers.  
 
 On peut par exemple en essayant de minimiser les conditions dans la classe StreamRelay.java de refractorer le main : pour cela, on créer plein de petites méthodes qui auront chacun leur rôle.  
